@@ -10,7 +10,7 @@
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 header{background:var(--g);color:var(--on);padding:calc(14px + env(safe-area-inset-top,0px)) 16px 14px}
 h1{margin:0;font-size:20px}header span{font-size:12px;opacity:.85}
-main{max-width:620px;margin:0 auto;padding:12px 12px calc(24px + env(safe-area-inset-bottom,0px))}
+main{max-width:620px;margin:0 auto;padding:12px 12px calc(84px + env(safe-area-inset-bottom,0px))}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
 h2{font-size:15px;margin:0 0 6px;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
 .big{font-size:34px;font-weight:700;margin:0}.mute{color:var(--mute);font-size:13px}
@@ -18,29 +18,45 @@ h2{font-size:15px;margin:0 0 6px;color:var(--mute);text-transform:uppercase;lett
 .li{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.li:last-child{border:0}
 .li small{display:block;color:var(--mute);font-size:12px}.pos{color:var(--g)}.neg{color:var(--r)}
 .pill{font-size:12px;padding:2px 8px;border-radius:10px;background:var(--gl);color:var(--g)}.pill.no{background:var(--rl);color:var(--r)}.pill.lf{background:var(--line);color:var(--mute)}
+.chips{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px}
+.chip{font:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:6px 14px;min-height:36px;white-space:nowrap;cursor:pointer}
+.chip.on{background:var(--gl);color:var(--g);border-color:var(--g);font-weight:600}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;background:none;border:0;color:var(--mute);font:inherit;font-size:12px;padding:8px 0 10px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+nav i{font-style:normal;font-size:20px;padding:2px 22px;border-radius:14px}
+nav .on{color:var(--g);font-weight:600}nav .on i{background:var(--gl)}
 .warn{background:var(--rl);color:var(--r);border-radius:8px;padding:8px;margin-bottom:12px}
 </style>
 </head>
 <body>
 <header><h1>🏸 Badminton Fund</h1><span id="up">Live view · read only</span></header>
 <main id="v"><p class="mute">Loading…</p></main>
+<nav id="nv"></nav>
 <script>
 const P=new URLSearchParams(location.hash.slice(1)),DB=(P.get('db')||'').replace(/\/+$/,''),ID=P.get('id')||'';
 const OK=/^https:\/\/[a-z0-9.-]+\.(firebaseio\.com|firebasedatabase\.app)$/i.test(DB)&&/^[a-z0-9]{8,64}$/i.test(ID);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const tk=n=>Math.round(n).toLocaleString('en-US')+' tk';
 let last=null,err='';
+let tab='ov',flt='all';
+function go(t){tab=t;draw();scrollTo(0,0)}
+function setF(f){flt=f;draw()}
 function draw(){const v=$('v'),d=last;
+ $('nv').innerHTML=[['ov','📊','Overview'],['tx','🧾','Transactions']].map(x=>`<button class="${tab===x[0]?'on':''}" onclick="go('${x[0]}')"><i>${x[1]}</i>${x[2]}</button>`).join('');
  if(!d){v.innerHTML=err?`<div class="warn">${esc(err)}</div>`:'<p class="mute">No data yet.</p>';return}
- const m=d.m||[],t=(d.t||[]).slice().sort((a,b)=>String(b.d).localeCompare(String(a.d)));
- const grp=[['Active',x=>!x.l&&x.d<=0,''],['Owes money (not eligible)',x=>!x.l&&x.d>0,'no'],['Left',x=>x.l,'lf']];
- let h=(err?`<div class="warn">${esc(err)} Showing the last data received.</div>`:'')+
- `<div class="card"><h2>Fund balance</h2><p class="big">${tk(d.bal)}</p><div class="g3"><div><span>Member payments</span><b>${tk(d.col)}</b></div><div><span>Donations</span><b>${tk(d.don)}</b></div><div><span>Spent</span><b>${tk(d.sp)}</b></div></div></div>
- <div class="card"><h2>Feathers</h2><b style="font-size:24px">${d.stock}</b> <span class="mute">in stock · bought ${d.bought} · used ${d.used}</span></div>`;
- grp.forEach(([n,f,c])=>{const L=m.filter(f);if(!L.length)return;
-  h+=`<div class="card"><h2>${n} (${L.length})</h2>${L.map(x=>`<div class="li"><div><b>${esc(x.n)}</b><small>Paid ${tk(x.p)} of ${tk(x.c)}</small></div>${x.d>0&&!x.l?`<span class="pill no">Owes ${tk(x.d)}</span>`:`<span class="pill ${c}">${x.l?'Left':'Clear'}</span>`}</div>`).join('')}</div>`});
- h+=`<div class="card"><h2>Transactions</h2>${t.length?t.map(x=>`<div class="li"><div><b>${esc(x.n)}</b><small>${{pay:'Payment',don:'Donation',exp:'Expense'}[x.k]||''} · ${esc(x.d)}</small></div><b class="${x.a>0?'pos':'neg'}">${x.a>0?'+':'−'}${tk(Math.abs(x.a))}</b></div>`).join(''):'<p class="mute">None yet.</p>'}</div>`;
- if(d.end)h+=`<div class="card"><h2>Season end</h2>${d.end.per?`Leftover ${tk(d.end.l)} ÷ ${d.end.n} members = <b>${tk(d.end.per)}</b> each.`:'No leftover, so no refunds.'}</div>`;
+ const m=d.m||[],all=(d.t||[]).slice().sort((a,b)=>String(b.d).localeCompare(String(a.d)));
+ let h=err?`<div class="warn">${esc(err)} Showing the last data received.</div>`:'';
+ if(tab==='ov'){
+  const grp=[['Active',x=>!x.l&&x.d<=0,''],['Owes money (not eligible)',x=>!x.l&&x.d>0,'no'],['Left',x=>x.l,'lf']];
+  h+=`<div class="card"><h2>Fund balance</h2><p class="big">${tk(d.bal)}</p><div class="g3"><div><span>Member payments</span><b>${tk(d.col)}</b></div><div><span>Donations</span><b>${tk(d.don)}</b></div><div><span>Spent</span><b>${tk(d.sp)}</b></div></div></div>
+  <div class="card"><h2>Feathers</h2><b style="font-size:24px">${d.stock}</b> <span class="mute">in stock · bought ${d.bought} · used ${d.used}</span></div>`;
+  grp.forEach(([n,f,c])=>{const L=m.filter(f);if(!L.length)return;
+   h+=`<div class="card"><h2>${n} (${L.length})</h2>${L.map(x=>`<div class="li"><div><b>${esc(x.n)}</b><small>Paid ${tk(x.p)} of ${tk(x.c)}</small></div>${x.d>0&&!x.l?`<span class="pill no">Owes ${tk(x.d)}</span>`:`<span class="pill ${c}">${x.l?'Left':'Clear'}</span>`}</div>`).join('')}</div>`});
+  if(d.end)h+=`<div class="card"><h2>Season end</h2>${d.end.per?`Leftover ${tk(d.end.l)} ÷ ${d.end.n} members = <b>${tk(d.end.per)}</b> each.`:'No leftover, so no refunds.'}</div>`}
+ else{
+  const F=[['all','All'],['pay','Payments'],['don','Donations'],['exp','Expenses']],t=all.filter(x=>flt==='all'||x.k===flt);
+  h+=`<div class="chips">${F.map(f=>`<button class="chip ${flt===f[0]?'on':''}" onclick="setF('${f[0]}')">${f[1]} (${f[0]==='all'?all.length:all.filter(x=>x.k===f[0]).length})</button>`).join('')}</div>
+  <div class="card" style="padding:4px 14px">${t.length?t.map(x=>`<div class="li"><div><b>${esc(x.n)}</b><small>${{pay:'Payment',don:'Donation',exp:'Expense'}[x.k]||''} · ${esc(x.d)}</small></div><b class="${x.a>0?'pos':'neg'}">${x.a>0?'+':'−'}${tk(Math.abs(x.a))}</b></div>`).join(''):'<p class="mute" style="padding:10px 0">None yet.</p>'}</div>`}
  v.innerHTML=h;$('up').textContent='Updated '+new Date(d.updated).toLocaleString([],{dateStyle:'medium',timeStyle:'short'})+' · read only'}
 const $=id=>document.getElementById(id);
 async function load(){if(!OK){err='This link is not valid.';draw();return}
